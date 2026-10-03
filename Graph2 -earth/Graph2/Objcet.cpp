@@ -1,0 +1,505 @@
+#include "cow.h"
+#include"Object.h"
+#include"bunny.h"
+#include <iostream>
+#define STB_IMAGE_IMPLEMENTATION
+#include <stb-master/stb_image.h>
+#include <glm//gtc/constants.hpp>
+
+
+Cow::Cow() {
+	SetUp();
+}
+
+void Cow::SetUp() {
+	const uint32_t ntris = 1732; //사이즈 지정
+	normals.resize(1732);  //1732개의 vertex 와 1732개의 normal
+
+	for (int i = 0; i < ntris; ++i) {
+		const glm::vec3& v0 = vertices[nvertices[i * 3]];  //1st vertex
+		const glm::vec3& v1 = vertices[nvertices[i * 3 + 1]]; //2nd vertex
+		const glm::vec3& v2 = vertices[nvertices[i * 3 + 2]]; //3rd vertex
+
+		glm::vec3 n = glm::cross((v1 - v0), (v2 - v0));  //두 벡터를 구한 후 외적
+		n = glm::normalize(n);
+
+		normals[nvertices[i * 3]] = n;      // 각 vertex당 같은 normal
+		normals[nvertices[i * 3 + 1]] = n;
+		normals[nvertices[i * 3 + 2]] = n;
+	}
+
+	//VAO 생성
+
+	glCreateVertexArrays(1, &vaoHandle);  //vao 생성
+	glBindVertexArray(vaoHandle);  ///여기에 작업할거다 activate 의 의미..
+
+
+	glGenBuffers(1, &vbo_cow_vertices);  //vbo 생성
+	glBindBuffer(GL_ARRAY_BUFFER, vbo_cow_vertices); //여기 vbo를 이용함
+	glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+	glVertexAttribPointer(
+		0,  //attr의 번호
+		3,  //# of data for each vertex
+		GL_FLOAT,  //데이터 타입
+		GL_FALSE, //normalize 되어 있는지
+		0,  //나중에
+		0  //나중에
+	);
+	glEnableVertexAttribArray(0); // 0번 attr enable
+
+
+	glGenBuffers(1, &vbo_cow_colors);  //vbo 생성
+	glBindBuffer(GL_ARRAY_BUFFER, vbo_cow_colors); //여기 vbo를 이용함
+	glBufferData(GL_ARRAY_BUFFER, normals.size() * sizeof(glm::vec3), normals.data(), GL_STATIC_DRAW);
+	glVertexAttribPointer(
+		1,  //attr의 번호
+		3,  //# of data for each vertex
+		GL_FLOAT,  //데이터 타입
+		GL_TRUE, //normalize 되어 있는지
+		0,  //나중에
+		0  //나중에
+	);
+	glEnableVertexAttribArray(1); // 1번 attr enable
+
+	//이 사이에 들어감
+	glGenBuffers(1, &ibo_cow_elements);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo_cow_elements);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(nvertices), nvertices, GL_STATIC_DRAW);
+
+	glBindVertexArray(0);  //이 VAO를 close
+}
+
+void Cow::draw() {
+	glBindVertexArray(vaoHandle);
+	int size;
+	glGetBufferParameteriv(GL_ELEMENT_ARRAY_BUFFER, GL_BUFFER_SIZE, &size);
+	glDrawElements(GL_TRIANGLES, size / sizeof(uint32_t), GL_UNSIGNED_INT, 0);
+
+}
+
+Floor::Floor(int _size, int _tilesNum) {
+
+
+	size = _size;
+	tilesNum = _tilesNum;
+
+
+	Buffers();
+}
+
+
+int num;
+
+void Floor::Buffers() {
+	//set Vbos, Ibo
+	// 	//Create VBO for vertex colo
+
+
+	glm::vec3 floorColor1 = { .7f,.7f,.7f };//light
+	glm::vec3 floorColor2 = { .3f,.3f,.3f }; //dark
+
+	//Create VAO for vertex position
+
+
+	float maxX = size, maxY = size;
+	float minX = -size, minY = -size;
+	int x, y, v[3], i;
+	float xp, yp, xd, yd;
+	v[2] = 0;
+	xd = (maxX - minX) / (float)tilesNum;
+	yd = (maxY - minY) / (float)tilesNum;
+
+	std::vector<glm::vec3> square_vertices;
+	std::vector<glm::vec3> square_normal;
+	std::vector<glm::vec3> square_color; //컬러지정?
+
+	for (x = 0, xp = minX; x < tilesNum; x++, xp += xd) {
+		for (y = 0, yp = minY, i = x; y < tilesNum; y++, i++, yp += yd) {
+
+			// 체크무늬 패턴에 따라 노말 벡터를 추가
+			glm::vec3 color = i % 2 == 0 ? floorColor1 : floorColor2;
+
+
+			square_normal.push_back(glm::vec3(0, 1, 0));  // assuming floor is horizontal
+			square_vertices.push_back(glm::vec3(xp, 0, yp));
+			square_color.push_back(color);
+
+			square_normal.push_back(glm::vec3(0, 1, 0));
+			square_vertices.push_back(glm::vec3(xp, 0, yp + yd));
+			square_color.push_back(color);
+
+			square_normal.push_back(glm::vec3(0, 1, 0));
+			square_vertices.push_back(glm::vec3(xp + xd, 0, yp + yd));
+			square_color.push_back(color);
+
+			/////////////////////////////////////////////////////////////////
+
+			square_normal.push_back(glm::vec3(0, 1, 0));  // assuming floor is horizontal
+			square_vertices.push_back(glm::vec3(xp, 0, yp));
+			square_color.push_back(color);
+
+			square_normal.push_back(glm::vec3(0, 1, 0));
+			square_vertices.push_back(glm::vec3(xp + xd, 0, yp + yd));
+			square_color.push_back(color);
+
+
+			square_normal.push_back(glm::vec3(0, 1, 0));
+			square_vertices.push_back(glm::vec3(xp + xd, 0, yp));
+			square_color.push_back(color);
+
+		}
+	}
+
+
+	num = square_vertices.size();
+
+	//VAO 생성
+
+	glCreateVertexArrays(1, &vaoHandle);  //vao 생성
+	glBindVertexArray(vaoHandle);  ///여기에 작업할거다 activate 의 의미..
+
+
+	glGenBuffers(1, &vbo_floor_vertices);  //vbo 생성
+	glBindBuffer(GL_ARRAY_BUFFER, vbo_floor_vertices); //여기 vbo를 이용함
+	glBufferData(GL_ARRAY_BUFFER, sizeof(glm::vec3) * square_vertices.size(), square_vertices.data(), GL_STATIC_DRAW);
+	glVertexAttribPointer(
+		0,  //attr의 번호
+		3,  //# of data for each vertex
+		GL_FLOAT,  //데이터 타입
+		GL_FALSE, //normalize 되어 있는지
+		0,  //나중에
+		0  //나중에
+	);
+	glEnableVertexAttribArray(0); // 0번 attr enable
+
+
+	glGenBuffers(1, &vbo_floor_normals);  //vbo 생성
+	glBindBuffer(GL_ARRAY_BUFFER, vbo_floor_normals); //여기 vbo를 이용함
+	glBufferData(GL_ARRAY_BUFFER, sizeof(glm::vec3) * square_normal.size(), square_normal.data(), GL_STATIC_DRAW);
+	glVertexAttribPointer(
+		1,  //attr의 번호
+		3,  //# of data for each vertex
+		GL_FLOAT,  //데이터 타입
+		GL_FALSE, //normalize 되어 있는지
+		0,  //나중에
+		0  //나중에
+	);
+	glEnableVertexAttribArray(1); // 1번 attr enable
+
+	glGenBuffers(1, &vbo_floor_colors);  //vbo 생성
+	glBindBuffer(GL_ARRAY_BUFFER, vbo_floor_colors); //여기 vbo를 이용함
+	glBufferData(GL_ARRAY_BUFFER, sizeof(glm::vec3) * square_color.size(), square_color.data(), GL_STATIC_DRAW);
+	glVertexAttribPointer(
+		2,  //attr의 번호
+		3,  //# of data for each vertex
+		GL_FLOAT,  //데이터 타입
+		GL_FALSE, //normalize 되어 있는지
+		0,  //나중에
+		0  //나중에
+	);
+	glEnableVertexAttribArray(2); // 1번 attr enable
+
+	glBindVertexArray(0);
+}
+
+void Floor::draw() {
+	glBindVertexArray(vaoHandle);
+	glDrawArrays(GL_TRIANGLES, 0, num * 3); //바닥 생성시 타일 하나 당 6개
+
+}
+
+Bunny::Bunny() {
+	SetUp();
+}
+
+void Bunny::SetUp() {
+	std::vector<glm::vec3> normals;
+	std::vector<glm::vec3> position;
+	std::vector<glm::vec2> uv;
+
+	//glm::vec3 position[3161];
+	//glm::vec3 normals[3161];
+	//glm::vec2 uv[3161];
+
+
+	const uint32_t _position = 3161;
+	const uint32_t _normal = 3161;
+	const uint32_t _uv = 3161; //사이즈 지정
+
+	position.resize(3161);
+	normals.resize(3161);
+	uv.resize(3161);
+
+	for (int i = 0; i < 3161; ++i)
+	{
+		position[i] = modelVertices[i].position;  //1st vertex
+		normals[i] = modelVertices[i].normal;
+		uv[i] = modelVertices[i].uv;
+
+	}
+
+
+
+	//VAO 생성
+	glCreateVertexArrays(1, &vaoHandle);  //vao 생성
+	glBindVertexArray(vaoHandle);  ///여기에 작업할거다 activate 의 의미..
+
+
+	glGenBuffers(1, &vbo_bunny_vertices);  //vbo 생성
+	glBindBuffer(GL_ARRAY_BUFFER, vbo_bunny_vertices); //여기 vbo를 이용함
+	glBufferData(GL_ARRAY_BUFFER, sizeof(glm::vec3) * position.size(), position.data(), GL_STATIC_DRAW);
+	glVertexAttribPointer(
+		0,  //attr의 번호
+		3,  //# of data for each vertex
+		GL_FLOAT,  //데이터 타입
+		GL_FALSE, //normalize 되어 있는지
+		0,
+		(void*)0  //시작 포인터
+	);
+	glEnableVertexAttribArray(0); // 0번 attr enable
+
+
+	glGenBuffers(1, &vbo_bunny_colors);  //vbo 생성
+	glBindBuffer(GL_ARRAY_BUFFER, vbo_bunny_colors); //여기 vbo를 이용함
+	glBufferData(GL_ARRAY_BUFFER, sizeof(glm::vec3) * normals.size(), normals.data(), GL_STATIC_DRAW);
+	glVertexAttribPointer(
+		1,  //attr의 번호
+		3,  //# of data for each vertex
+		GL_FLOAT,  //데이터 타입
+		GL_TRUE, //normalize 되어 있는지
+		0,
+		0
+	);
+	glEnableVertexAttribArray(1); // 1번 attr enable
+
+	glGenBuffers(2, &vbo_bunny_Texcoord);
+	glBindBuffer(GL_ARRAY_BUFFER, vbo_bunny_Texcoord);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(glm::vec2) * uv.size(), uv.data(), GL_STATIC_DRAW);
+	glVertexAttribPointer(
+		2,
+		2,
+		GL_FLOAT,
+		GL_FALSE,
+		0, 0
+	);
+	glEnableVertexAttribArray(2);
+
+
+
+
+	//이 사이에 들어감
+	glGenBuffers(1, &ibo_bunny_elements);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo_bunny_elements);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(modelIndices), modelIndices, GL_STATIC_DRAW);
+
+	glActiveTexture(GL_TEXTURE0);
+	glGenTextures(1, &vbo_bunny_Texcoord);  //tex_2d is a member variable
+	glBindTexture(GL_TEXTURE_2D, vbo_bunny_Texcoord);
+
+
+	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_MIRRORED_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_MIRRORED_REPEAT);
+
+
+	int width, height, channel;
+	unsigned char* image = stbi_load("baseColor.png", &width, &height, &channel, 0);
+
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB,
+		GL_UNSIGNED_BYTE, image);
+	glGenerateMipmap(GL_TEXTURE_2D);
+
+
+	stbi_image_free(image);
+	glBindTexture(GL_TEXTURE_2D, 1);
+
+
+	glBindVertexArray(0);  //이 VAO를 close
+}
+
+void Bunny::draw() {
+	glBindVertexArray(vaoHandle);
+	int size;
+	glGetBufferParameteriv(GL_ELEMENT_ARRAY_BUFFER, GL_BUFFER_SIZE, &size);
+	glDrawElements(GL_TRIANGLES, size / sizeof(uint32_t), GL_UNSIGNED_INT, 0);
+
+}
+
+
+Earth::Earth(float rad, GLuint sl, GLuint st) :
+	radius(rad), slices(sl), stacks(st)
+{
+
+	nVerts = (slices + 1) * (stacks + 1);
+	elements = (slices * 2 * (stacks - 1)) * 3;
+
+	// Verts
+	float* v = new float[3 * nVerts];
+	// Normals
+	float* n = new float[3 * nVerts];
+	// Tex coords
+	float* tex = new float[2 * nVerts];    //we don't use it now
+	// Index
+	unsigned int* el = new unsigned int[elements];  //index
+
+	// Generate the vertex data
+	generateVerts(v, n, tex, el);
+
+	//VAO 생성
+	glCreateVertexArrays(1, &VAO);  //vao 생성
+	glBindVertexArray(VAO);  ///여기에 작업할거다 activate 의 의미..
+
+
+	glGenBuffers(1, &VBO_position);  //vbo 생성
+	glBindBuffer(GL_ARRAY_BUFFER, VBO_position); //여기 vbo를 이용함
+	glBufferData(GL_ARRAY_BUFFER, 3 * nVerts*sizeof(GLfloat), v, GL_STATIC_DRAW);
+	glVertexAttribPointer(
+		0,  //attr의 번호
+		3,  //# of data for each vertex
+		GL_FLOAT,  //데이터 타입
+		GL_FALSE, //normalize 되어 있는지
+		0,
+		(void*)0  //시작 포인터
+	);
+	glEnableVertexAttribArray(0); // 0번 attr enable
+
+
+	glGenBuffers(1, &VBO_normal);  //vbo 생성
+	glBindBuffer(GL_ARRAY_BUFFER, VBO_normal); //여기 vbo를 이용함
+	glBufferData(GL_ARRAY_BUFFER, 3 * nVerts*sizeof(GLfloat), n, GL_STATIC_DRAW);
+	glVertexAttribPointer(
+		1,  //attr의 번호
+		3,  //# of data for each vertex
+		GL_FLOAT,  //데이터 타입
+		GL_TRUE, //normalize 되어 있는지
+		0,
+		0
+
+	);
+	glEnableVertexAttribArray(1); // 1번 attr enable
+
+	glGenBuffers(2, &VBO_texcoord);
+	glBindBuffer(GL_ARRAY_BUFFER, VBO_texcoord);
+	glBufferData(GL_ARRAY_BUFFER, 2 * nVerts*sizeof(GLfloat), tex, GL_STATIC_DRAW);
+	glVertexAttribPointer(
+		2,
+		2,
+		GL_FLOAT,
+		GL_FALSE,
+		0, 0
+
+	);
+	glEnableVertexAttribArray(2);
+
+
+
+
+	//이 사이에 들어감
+	glGenBuffers(1, &IBO);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, IBO);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, elements * sizeof(GLfloat), el, GL_STATIC_DRAW);
+
+	glActiveTexture(GL_TEXTURE0);
+	glGenTextures(1, &VBO_texcoord);  //tex_2d is a member variable
+	glBindTexture(GL_TEXTURE_2D, VBO_texcoord);
+
+
+	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_MIRRORED_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_MIRRORED_REPEAT);
+
+
+	int width, height, channel;
+	unsigned char* image = stbi_load("earth.jpg", &width, &height, &channel, 0);
+
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB,
+		GL_UNSIGNED_BYTE, image);
+	glGenerateMipmap(GL_TEXTURE_2D);
+
+
+	stbi_image_free(image);
+	glBindTexture(GL_TEXTURE_2D, 1);
+	//create vao, vbo and ibo here... (We didn't use std::vector here...)
+
+
+	delete[] v;
+	delete[] n;
+	delete[] el;
+	delete[] tex;
+
+}
+
+void Earth::draw()
+{
+	glBindVertexArray(VAO);
+	int size;
+	glGetBufferParameteriv(GL_ELEMENT_ARRAY_BUFFER, GL_BUFFER_SIZE, &size);
+	glDrawElements(GL_TRIANGLES, size / sizeof(GLfloat), GL_UNSIGNED_INT, 0);
+
+}
+
+void Earth::generateVerts(float* verts, float* norms, float* tex,
+	unsigned int* el)
+{
+	// Generate positions and normals
+	GLfloat theta, phi;
+	GLfloat thetaFac = glm::two_pi<float>() / slices;
+	GLfloat phiFac = glm::pi<float>() / stacks;
+	GLfloat nx, ny, nz, s, t;
+	GLuint idx = 0, tIdx = 0;
+	for (GLuint i = 0; i <= slices; i++) {
+		theta = i * thetaFac;
+		s = (GLfloat)i / slices;
+		for (GLuint j = 0; j <= stacks; j++) {
+			phi = j * phiFac;
+			t = (GLfloat)j / stacks;
+			nx = sinf(phi) * cosf(theta);
+			ny = sinf(phi) * sinf(theta);
+			nz = cosf(phi);
+			verts[idx] = radius * nx; verts[idx + 1] = radius * ny; verts[idx + 2] = radius * nz;
+			norms[idx] = nx; norms[idx + 1] = ny; norms[idx + 2] = nz;
+			idx += 3;
+
+			tex[tIdx] = s;
+			tex[tIdx + 1] = t;
+			tIdx += 2;
+		}
+	}
+
+	// Generate the element list
+	idx = 0;
+	for (GLuint i = 0; i < slices; i++) {
+		GLuint stackStart = i * (stacks + 1);
+		GLuint nextStackStart = (i + 1) * (stacks + 1);
+		for (GLuint j = 0; j < stacks; j++) {
+			if (j == 0) {
+				el[idx] = stackStart;
+				el[idx + 1] = stackStart + 1;
+				el[idx + 2] = nextStackStart + 1;
+				idx += 3;
+			}
+			else if (j == stacks - 1) {
+				el[idx] = stackStart + j;
+				el[idx + 1] = stackStart + j + 1;
+				el[idx + 2] = nextStackStart + j;
+				idx += 3;
+			}
+			else {
+				el[idx] = stackStart + j;
+				el[idx + 1] = stackStart + j + 1;
+				el[idx + 2] = nextStackStart + j + 1;
+				el[idx + 3] = nextStackStart + j;
+				el[idx + 4] = stackStart + j;
+				el[idx + 5] = nextStackStart + j + 1;
+				idx += 6;
+			}
+		}
+	}
+}
+
+int Earth::getVertexArrayHandle()
+{
+	return this->VAO;
+}
